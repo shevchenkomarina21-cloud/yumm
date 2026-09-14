@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Przepisownik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EFE7D8;
+    --card:#FFFDF7;
+    --ink:#2E2A22;
+    --ink-soft:#7A7264;
+    --line:#D9CEB4;
+    --plum:#8C3B4A;
+    --plum-dark:#6E2E3A;
+    --herb:#5B7052;
+    --herb-light:#E1E7D8;
+    --mustard:#B87A22;
+    --mustard-light:#F1DFB6;
+    --danger:#A33B2E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Karla',sans-serif;
+    font-size:16px;
+    line-height:1.5;
+  }
+  h1,h2,h3,.serif{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    margin:0;
+  }
+  .app{max-width:1080px;margin:0 auto;padding:28px 24px 80px;}
+
+  /* header */
+  .topbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:22px;}
+  .brand{display:flex;align-items:baseline;gap:8px;}
+  .brand h1{font-size:30px;color:var(--plum-dark);}
+  .brand span{font-family:'Fraunces',serif;font-style:italic;font-size:15px;color:var(--ink-soft);}
+  .search-wrap{flex:1;min-width:180px;}
+  .search-wrap input{
+    width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card);font-family:'Karla',sans-serif;font-size:15px;color:var(--ink);
+  }
+  .search-wrap input:focus{outline:2px solid var(--plum);outline-offset:1px;}
+  .btn{
+    font-family:'Karla',sans-serif;font-weight:600;font-size:14.5px;
+    border:none;border-radius:10px;padding:10px 16px;cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--plum);color:#fff;}
+  .btn-primary:hover{background:var(--plum-dark);}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+  .btn-ghost:hover{background:rgba(0,0,0,.03);}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger);}
+  .btn-danger:hover{background:rgba(163,59,46,.08);}
+  .btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, .tab:focus-visible, .rcard:focus-visible{
+    outline:2px solid var(--plum-dark);outline-offset:2px;
+  }
+
+  /* category tabs styled like recipe-box divider cards */
+  .tabs{display:flex;gap:6px;margin-bottom:22px;flex-wrap:wrap;align-items:flex-end;}
+  .tab{
+    font-family:'Karla',sans-serif;font-weight:600;font-size:14px;
+    background:#E4DAC3;color:var(--ink-soft);border:1px solid var(--line);border-bottom:none;
+    padding:9px 16px 8px;border-radius:9px 9px 0 0;cursor:pointer;position:relative;top:1px;
+  }
+  .tab.active{background:var(--card);color:var(--plum-dark);top:0;padding-bottom:10px;box-shadow:0 -2px 6px rgba(0,0,0,.04);}
+  .tab-count{color:var(--ink-soft);font-weight:400;font-size:12.5px;margin-left:4px;}
+  .tabline{border-bottom:1px solid var(--line);margin-bottom:22px;margin-top:-22px;}
+
+  /* grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+  .rcard{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    cursor:pointer;text-align:left;display:flex;flex-direction:column;
+  }
+  .rcard:hover{box-shadow:0 4px 14px rgba(46,42,34,.08);}
+  .rthumb{width:100%;aspect-ratio:4/3;background:var(--herb-light);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .rthumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .rthumb .ph-icon{color:var(--herb);opacity:.6;}
+  .rbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;flex:1;}
+  .rbody h3{font-size:17px;color:var(--ink);}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;}
+  .chip-cat-przekaski{background:#EAD9C6;color:#7A4A22;}
+  .chip-cat-glowne{background:#DCD9EC;color:#4A4180;}
+  .chip-cat-slodycze{background:#F1D8DE;color:#8C3B4A;}
+  .chip-cat-zupy{background:var(--herb-light);color:var(--herb);}
+  .chip-diff{background:var(--mustard-light);color:var(--mustard);}
+  .chip-time{background:#EFEAE0;color:var(--ink-soft);}
+
+  .empty{text-align:center;padding:70px 20px;color:var(--ink-soft);}
+  .empty h2{color:var(--ink);font-size:22px;margin-bottom:8px;}
+  .empty .btn{margin-top:16px;}
+
+  /* detail view */
+  .back-link{background:none;border:none;color:var(--plum-dark);font-weight:600;font-size:14.5px;cursor:pointer;padding:0;margin-bottom:18px;font-family:'Karla',sans-serif;}
+  .detail-head{display:grid;grid-template-columns:220px 1fr;gap:24px;margin-bottom:26px;}
+  .photo-gallery{display:flex;flex-direction:column;gap:8px;flex-shrink:0;}
+  .photo-hero{width:220px;height:220px;border-radius:14px;background:var(--herb-light);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;border:none;padding:0;}
+  .photo-hero img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-strip{display:flex;gap:6px;flex-wrap:wrap;}
+  .photo-thumb{width:44px;height:44px;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent;flex-shrink:0;padding:0;background:var(--herb-light);}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-thumb.active{border-color:var(--plum);}
+  .detail-meta h2{font-size:28px;color:var(--plum-dark);margin-bottom:10px;}
+  .detail-actions{display:flex;gap:8px;margin-top:14px;align-items:center;}
+  .detail-source{margin-top:10px;font-size:14px;color:var(--ink-soft);}
+  .detail-source a{color:var(--plum);}
+
+  .menu-wrap{position:relative;display:inline-block;}
+  .icon-btn{background:none;border:1px solid var(--line);border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-soft);font-size:17px;line-height:1;}
+  .icon-btn:hover{background:rgba(0,0,0,.04);}
+  .dropdown-menu{position:absolute;top:38px;right:0;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(46,42,34,.14);min-width:150px;overflow:hidden;z-index:10;}
+  .dropdown-menu button{display:block;width:100%;text-align:left;padding:10px 14px;background:none;border:none;font-family:'Karla',sans-serif;font-size:14px;color:var(--danger);cursor:pointer;}
+  .dropdown-menu button:hover{background:rgba(163,59,46,.08);}
+
+  .lightbox-overlay{position:fixed;inset:0;background:rgba(20,18,14,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;}
+  .lightbox-img{max-width:90vw;max-height:80vh;border-radius:8px;display:block;}
+  .lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.18);border:none;color:#fff;font-size:24px;width:42px;height:42px;border-radius:50%;cursor:pointer;}
+  .lightbox-prev{left:16px;}
+  .lightbox-next{right:16px;}
+  .lightbox-close{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.18);border:none;color:#fff;font-size:18px;width:36px;height:36px;border-radius:50%;cursor:pointer;}
+
+  .section{margin-bottom:28px;}
+  .section h3{font-size:19px;color:var(--ink);margin-bottom:12px;}
+  .check-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);}
+  .check-row input{width:18px;height:18px;accent-color:var(--herb);flex-shrink:0;}
+  .check-row.checked span{color:var(--ink-soft);text-decoration:line-through;}
+  .steps{padding-left:22px;display:flex;flex-direction:column;gap:10px;}
+  .steps li{padding-left:6px;font-size:15px;}
+  .notes-box{background:var(--mustard-light);border-radius:12px;padding:16px 18px;white-space:pre-wrap;font-size:15px;color:#5c4416;}
+  .notes-empty{color:var(--ink-soft);font-style:italic;}
+
+  /* form */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-weight:600;font-size:14px;color:var(--ink);}
+  .field .hint{font-weight:400;font-size:12.5px;color:var(--ink-soft);}
+  input[type=text], input[type=number], input[type=url], select, textarea{
+    font-family:'Karla',sans-serif;font-size:15px;color:var(--ink);
+    border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--card);
+  }
+  textarea{resize:vertical;font-family:'Karla',sans-serif;}
+  .photo-upload-list{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .photo-upload-item{position:relative;width:80px;height:80px;border-radius:10px;overflow:hidden;background:var(--herb-light);flex-shrink:0;}
+  .photo-upload-item img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-upload-remove{position:absolute;top:3px;right:3px;background:rgba(20,18,14,.6);color:#fff;border:none;width:20px;height:20px;border-radius:50%;font-size:13px;line-height:1;cursor:pointer;}
+  .form-actions{display:flex;gap:10px;margin-top:8px;}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;
+    opacity:0;pointer-events:none;transition:opacity .25s ease;
+  }
+  .toast.show{opacity:1;}
+
+  @media (max-width:560px){
+    .detail-head{grid-template-columns:1fr;}
+    .photo-hero{width:100%;height:200px;}
+    .form-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CATEGORIES = [
+  {id:'przekaski', label:'Przekąski / małe dania'},
+  {id:'glowne', label:'Dania główne'},
+  {id:'slodycze', label:'Słodycze i wypieki'},
+  {id:'zupy', label:'Zupy'},
+];
+const DIFFICULTIES = ['Łatwy','Średni','Trudny'];
+
+let state = {
+  recipes: [],
+  checks: {},
+  category: 'all',
+  query: '',
+  view: 'grid',      // grid | detail | form
+  activeId: null,
+  editing: null,     // recipe object being edited (or null = new)
+  photoFullPending: null, // full-res dataURL captured during form editing, saved on submit
+};
+
+function uid(){ return 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+async function loadAll(){
+  try{
+    const r = await window.storage.get('recipes', false);
+    state.recipes = r ? JSON.parse(r.value) : [];
+  }catch(e){ state.recipes = []; }
+  try{
+    const c = await window.storage.get('ingredient-checks', false);
+    state.checks = c ? JSON.parse(c.value) : {};
+  }catch(e){ state.checks = {}; }
+}
+
+async function saveRecipes(){
+  try{
+    const res = await window.storage.set('recipes', JSON.stringify(state.recipes), false);
+    if(!res) showToast('Nie udało się zapisać zmian.');
+  }catch(e){ showToast('Nie udało się zapisać zmian.'); }
+}
+
+async function saveChecks(){
+  try{
+    await window.storage.set('ingredient-checks', JSON.stringify(state.checks), false);
+  }catch(e){ showToast('Nie udało się zapisać listy.'); }
+}
+
+function photoKey(recipeId, photoId){
+  return (photoId && photoId !== 'legacy') ? ('photo:'+recipeId+':'+photoId) : ('photo:'+recipeId);
+}
+async function getFullPhoto(recipeId, photoId){
+  try{
+    const res = await window.storage.get(photoKey(recipeId, photoId), false);
+    return res ? res.value : null;
+  }catch(e){ return null; }
+}
+
+async function setFullPhoto(recipeId, photoId, dataUrl){
+  try{
+    if(dataUrl){ await window.storage.set(photoKey(recipeId, photoId), dataUrl, false); }
+  }catch(e){ showToast('Zdjęcie w pełnej rozdzielczości nie zostało zapisane.'); }
+}
+
+async function deleteFullPhoto(recipeId, photoId){
+  try{ await window.storage.delete(photoKey(recipeId, photoId), false); }catch(e){}
+}
+
+async function deleteAllPhotosForRecipe(recipe){
+  const photos = photosOf(recipe);
+  for(const p of photos){ await deleteFullPhoto(recipe.id, p.id); }
+}
+
+function resizeImage(file, maxWidth, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, maxWidth / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function catLabel(id){ return (CATEGORIES.find(c=>c.id===id)||{}).label || id; }
+function catChipClass(id){ return 'chip chip-cat-'+id; }
+function photosOf(r){
+  if(r.photos && r.photos.length) return r.photos;
+  if(r.thumb) return [{id:'legacy', thumb:r.thumb}];
+  return [];
+}
+
+function filteredRecipes(){
+  let list = state.recipes;
+  if(state.category !== 'all') list = list.filter(r=>r.category===state.category);
+  if(state.query.trim()){
+    const q = state.query.trim().toLowerCase();
+    list = list.filter(r=> r.name.toLowerCase().includes(q));
+  }
+  return list.slice().sort((a,b)=> a.name.localeCompare(b.name,'pl'));
+}
+
+function render(){
+  const app = document.getElementById('app');
+  if(state.view === 'grid') app.innerHTML = renderGridView();
+  else if(state.view === 'detail') app.innerHTML = renderDetailView();
+  else if(state.view === 'form') app.innerHTML = renderFormView();
+  attachHandlers();
+}
+
+function renderGridView(){
+  const list = filteredRecipes();
+  const tabs = [{id:'all', label:'Wszystkie'}, ...CATEGORIES].map(c=>{
+    const count = c.id==='all' ? state.recipes.length : state.recipes.filter(r=>r.category===c.id).length;
+    return `<button class="tab ${state.category===c.id?'active':''}" data-cat="${c.id}">${c.label}<span class="tab-count">${count}</span></button>`;
+  }).join('');
+
+  let gridHtml;
+  if(list.length===0){
+    gridHtml = `<div class="empty">
+      <h2>${state.recipes.length===0 ? 'Twoja książka kucharska jest pusta' : 'Nic nie znaleziono'}</h2>
+      <p>${state.recipes.length===0 ? 'Dodaj pierwszy przepis — swój albo znaleziony w sieci.' : 'Spróbuj innej kategorii albo wyszukiwania.'}</p>
+      ${state.recipes.length===0 ? '<button class="btn btn-primary" id="btn-empty-add">Dodaj przepis</button>' : ''}
+    </div>`;
+  } else {
+    gridHtml = `<div class="grid">` + list.map(r=>{
+      const ph = photosOf(r)[0];
+      return `
+      <button class="rcard" data-open="${r.id}">
+        <div class="rthumb">
+          ${ph ? `<img src="${ph.thumb}" alt="">` : phIcon()}
+        </div>
+        <div class="rbody">
+          <h3>${escapeHtml(r.name)}</h3>
+          <div class="chips">
+            <span class="${catChipClass(r.category)}">${catLabel(r.category)}</span>
+            ${r.difficulty ? `<span class="chip chip-diff">${r.difficulty}</span>` : ''}
+            ${r.prepTime ? `<span class="chip chip-time">${r.prepTime} min</span>` : ''}
+          </div>
+        </div>
+      </button>
+    `;}).join('') + `</div>`;
+  }
+
+  return `
+    <div class="topbar">
+      <div class="brand"><h1>Przepisownik</h1><span>notatnik z przepisami</span></div>
+      <div class="search-wrap"><input type="text" id="search-input" placeholder="Szukaj przepisu…" value="${escapeAttr(state.query)}"></div>
+      <button class="btn btn-primary" id="btn-add">+ Nowy przepis</button>
+    </div>
+    <div class="tabs">${tabs}</div>
+    <div class="tabline"></div>
+    ${gridHtml}
+  `;
+}
+
+function phIcon(){
+  return `<svg class="ph-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7a2 2 0 0 1 2-2h2l1-2h8l1 2h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><circle cx="12" cy="13" r="3.5"/></svg>`;
+}
+
+function renderDetailView(){
+  const r = state.recipes.find(x=>x.id===state.activeId);
+  if(!r){ state.view='grid'; return renderGridView(); }
+  const ingLines = (r.ingredients||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const stepLines = (r.instructions||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const myChecks = state.checks[r.id] || {};
+  const photos = photosOf(r);
+  const activeIdx = state._activePhotoIdx || 0;
+
+  const ingHtml = `<div>${ingLines.map((l,i)=>{
+        const checked = !!myChecks[i];
+        return `<label class="check-row ${checked?'checked':''}">
+          <input type="checkbox" data-check-idx="${i}" ${checked?'checked':''}>
+          <span>${escapeHtml(l)}</span>
+        </label>`;
+      }).join('') || '<p class="notes-empty">Brak podanych składników.</p>'}</div>`;
+
+  const galleryHtml = `
+    <div class="photo-gallery">
+      <button class="photo-hero" id="photo-hero" ${photos.length?'data-open-lightbox="'+activeIdx+'"':''}>
+        ${photos.length ? `<img src="${photos[activeIdx].thumb}" alt="">` : phIcon()}
+      </button>
+      ${photos.length>1 ? `<div class="photo-strip">${photos.map((p,i)=>`
+        <button class="photo-thumb ${i===activeIdx?'active':''}" data-set-active="${i}"><img src="${p.thumb}" alt=""></button>
+      `).join('')}</div>` : ''}
+    </div>
+  `;
+
+  return `
+    <button class="back-link" id="btn-back">← Wróć do listy</button>
+    <div class="detail-head">
+      ${galleryHtml}
+      <div class="detail-meta">
+        <h2>${escapeHtml(r.name)}</h2>
+        <div class="chips">
+          <span class="${catChipClass(r.category)}">${catLabel(r.category)}</span>
+          ${r.difficulty ? `<span class="chip chip-diff">${r.difficulty}</span>` : ''}
+          ${r.prepTime ? `<span class="chip chip-time">${r.prepTime} min</span>` : ''}
+          ${r.servings ? `<span class="chip chip-time">${r.servings} porcji</span>` : ''}
+        </div>
+        ${r.source ? `<div class="detail-source">Źródło: ${isUrl(r.source) ? `<a href="${escapeAttr(r.source)}" target="_blank" rel="noopener">${escapeHtml(r.source)}</a>` : escapeHtml(r.source)}</div>` : ''}
+        <div class="detail-actions">
+          <button class="btn btn-ghost" id="btn-edit">Edytuj</button>
+          <div class="menu-wrap">
+            <button class="icon-btn" id="btn-more" aria-label="Więcej opcji" title="Więcej opcji">⋮</button>
+            <div class="dropdown-menu" id="more-menu" style="display:none;">
+              <button id="btn-delete">Usuń przepis</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Składniki <span class="hint" style="font-weight:400;font-size:13px;">— zaznacz to, co już masz</span></h3>
+      ${ingHtml}
+    </div>
+
+    <div class="section">
+      <h3>Przygotowanie</h3>
+      <ol class="steps">${stepLines.map(s=>`<li>${escapeHtml(s)}</li>`).join('') || '<li class="notes-empty">Brak instrukcji.</li>'}</ol>
+    </div>
+
+    <div class="section">
+      <h3>Pomysły i notatki</h3>
+      ${r.notes && r.notes.trim() ? `<div class="notes-box">${escapeHtml(r.notes)}</div>` : '<p class="notes-empty">Brak notatek.</p>'}
+    </div>
+  `;
+}
+
+function isUrl(s){ return /^https?:\/\//i.test(s.trim()); }
+
+function renderFormView(){
+  const r = state.editing || {id:null, name:'', category:CATEGORIES[0].id, difficulty:'', prepTime:'', servings:'', source:'', ingredients:'', instructions:'', notes:'', thumb:''};
+  const isEdit = !!r.id;
+  return `
+    <button class="back-link" id="btn-cancel">← Anuluj</button>
+    <h2 style="font-size:24px;color:var(--plum-dark);margin-bottom:20px;">${isEdit?'Edytuj przepis':'Nowy przepis'}</h2>
+    <div id="recipe-form">
+      <div class="form-grid">
+        <div class="field full">
+          <label>Nazwa</label>
+          <input type="text" name="name" value="${escapeAttr(r.name)}" required>
+        </div>
+        <div class="field">
+          <label>Kategoria</label>
+          <select name="category">
+            ${CATEGORIES.map(c=>`<option value="${c.id}" ${r.category===c.id?'selected':''}>${c.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Trudność</label>
+          <select name="difficulty">
+            <option value="">—</option>
+            ${DIFFICULTIES.map(d=>`<option ${r.difficulty===d?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Czas przygotowania (min)</label>
+          <input type="number" name="prepTime" min="0" value="${escapeAttr(r.prepTime)}">
+        </div>
+        <div class="field">
+          <label>Liczba porcji</label>
+          <input type="number" name="servings" min="0" value="${escapeAttr(r.servings)}">
+        </div>
+        <div class="field full">
+          <label>Źródło <span class="hint">(link do przepisu albo np. „mój przepis”)</span></label>
+          <input type="text" name="source" value="${escapeAttr(r.source)}">
+        </div>
+        <div class="field full">
+          <label>Zdjęcia <span class="hint">(możesz dodać kilka naraz)</span></label>
+          <div class="photo-upload-list" id="photo-upload-list">
+            ${(state.formPhotos||[]).map(p=>`
+              <div class="photo-upload-item" data-photo-id="${p.id}">
+                <img src="${p.thumb}" alt="">
+                <button type="button" class="photo-upload-remove" data-remove-photo="${p.id}" aria-label="Usuń zdjęcie">×</button>
+              </div>
+            `).join('')}
+          </div>
+          <input type="file" accept="image/*" id="photo-input" multiple>
+        </div>
+        <div class="field full">
+          <label>Składniki <span class="hint">(jeden składnik na linię)</span></label>
+          <textarea name="ingredients" rows="6" placeholder="np.&#10;250 g mąki pszennej&#10;2 jajka&#10;szczypta soli">${escapeHtml(r.ingredients)}</textarea>
+        </div>
+        <div class="field full">
+          <label>Przygotowanie <span class="hint">(jeden krok na linię)</span></label>
+          <textarea name="instructions" rows="6" placeholder="np.&#10;Wymieszaj suche składniki.&#10;Dodaj jajka i wyrób ciasto.">${escapeHtml(r.instructions)}</textarea>
+        </div>
+        <div class="field full">
+          <label>Pomysły i notatki</label>
+          <textarea name="notes" rows="3" placeholder="Warianty, do czego pasuje, co zmienić następnym razem…">${escapeHtml(r.notes)}</textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" id="btn-save-recipe">${isEdit?'Zapisz zmiany':'Dodaj przepis'}</button>
+        <button type="button" class="btn btn-ghost" id="btn-cancel-2">Anuluj</button>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+function attachHandlers(){
+  // grid view
+  const searchInput = document.getElementById('search-input');
+  if(searchInput){
+    searchInput.addEventListener('input', e=>{ state.query = e.target.value; render(); 
+      // keep focus & caret after re-render
+      const el = document.getElementById('search-input');
+      if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    });
+  }
+  document.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ state.category = btn.dataset.cat; render(); });
+  });
+  const addBtn = document.getElementById('btn-add');
+  if(addBtn) addBtn.addEventListener('click', ()=> openForm(null));
+  const emptyAddBtn = document.getElementById('btn-empty-add');
+  if(emptyAddBtn) emptyAddBtn.addEventListener('click', ()=> openForm(null));
+  document.querySelectorAll('[data-open]').forEach(card=>{
+    card.addEventListener('click', ()=> openDetail(card.dataset.open));
+  });
+
+  // detail view
+  const backBtn = document.getElementById('btn-back');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ state.view='grid'; state._activePhotoIdx=0; render(); });
+  const editBtn = document.getElementById('btn-edit');
+  if(editBtn) editBtn.addEventListener('click', ()=> openForm(state.activeId));
+  const delBtn = document.getElementById('btn-delete');
+  if(delBtn) delBtn.addEventListener('click', ()=>{ document.getElementById('more-menu').style.display='none'; openDeleteConfirm(state.activeId); });
+  const moreBtn = document.getElementById('btn-more');
+  const moreMenu = document.getElementById('more-menu');
+  if(moreBtn && moreMenu){
+    moreBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      moreMenu.style.display = moreMenu.style.display==='none' ? 'block' : 'none';
+    });
+    document.addEventListener('click', function closeMenu(){ moreMenu.style.display='none'; }, {once:true});
+  }
+  const photoHero = document.getElementById('photo-hero');
+  if(photoHero && photoHero.dataset.openLightbox!==undefined && photosOf(state.recipes.find(x=>x.id===state.activeId)||{}).length){
+    photoHero.addEventListener('click', ()=> openLightbox(state.activeId, state._activePhotoIdx||0));
+  }
+  document.querySelectorAll('[data-set-active]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ state._activePhotoIdx = parseInt(btn.dataset.setActive,10); render(); });
+  });
+  document.querySelectorAll('[data-check-idx]').forEach(cb=>{
+    cb.addEventListener('change', async ()=>{
+      const idx = cb.dataset.checkIdx;
+      const rid = state.activeId;
+      state.checks[rid] = state.checks[rid] || {};
+      state.checks[rid][idx] = cb.checked;
+      await saveChecks();
+      render();
+    });
+  });
+
+  // form view
+  const cancelBtn = document.getElementById('btn-cancel');
+  const cancelBtn2 = document.getElementById('btn-cancel-2');
+  const cancelAction = ()=>{ 
+    state.editing = null; state.formPhotos = []; state.formNewFullData = {}; state.formDeletedPhotoIds = [];
+    state.view = state.activeId ? 'detail' : 'grid'; render(); 
+  };
+  if(cancelBtn) cancelBtn.addEventListener('click', cancelAction);
+  if(cancelBtn2) cancelBtn2.addEventListener('click', cancelAction);
+  const photoInput = document.getElementById('photo-input');
+  const photoList = document.getElementById('photo-upload-list');
+  if(photoInput){
+    photoInput.addEventListener('change', async e=>{
+      const files = Array.from(e.target.files || []);
+      for(const file of files){
+        try{
+          const thumb = await resizeImage(file, 320, 0.6);
+          const full = await resizeImage(file, 1100, 0.78);
+          const pid = uid();
+          state.formPhotos.push({id: pid, thumb, isNew:true});
+          state.formNewFullData[pid] = full;
+          if(photoList){
+            photoList.insertAdjacentHTML('beforeend', `
+              <div class="photo-upload-item" data-photo-id="${pid}">
+                <img src="${thumb}" alt="">
+                <button type="button" class="photo-upload-remove" data-remove-photo="${pid}" aria-label="Usuń zdjęcie">×</button>
+              </div>
+            `);
+          }
+        }catch(err){ showToast('Nie udało się wczytać jednego ze zdjęć.'); }
+      }
+      photoInput.value = '';
+    });
+  }
+  if(photoList){
+    photoList.addEventListener('click', e=>{
+      const btn = e.target.closest('[data-remove-photo]');
+      if(!btn) return;
+      const pid = btn.dataset.removePhoto;
+      state.formPhotos = state.formPhotos.filter(p=>p.id!==pid);
+      delete state.formNewFullData[pid];
+      if(!state.formDeletedPhotoIds.includes(pid)) state.formDeletedPhotoIds.push(pid);
+      const node = photoList.querySelector(`[data-photo-id="${pid}"]`);
+      if(node) node.remove();
+    });
+  }
+  const form = document.getElementById('recipe-form');
+  const saveBtn = document.getElementById('btn-save-recipe');
+  if(saveBtn && form){
+    saveBtn.addEventListener('click', async ()=>{
+      try{
+        const val = sel => { const el = form.querySelector('[name="'+sel+'"]'); return el ? el.value : ''; };
+        const name = val('name').trim();
+        if(!name){
+          showToast('Podaj nazwę przepisu.');
+          const nameInput = form.querySelector('[name="name"]');
+          if(nameInput) nameInput.focus();
+          return;
+        }
+        const isEdit = !!(state.editing && state.editing.id);
+        const id = isEdit ? state.editing.id : uid();
+        const recipe = {
+          id,
+          name,
+          category: val('category') || CATEGORIES[0].id,
+          difficulty: val('difficulty') || '',
+          prepTime: val('prepTime') || '',
+          servings: val('servings') || '',
+          source: val('source').trim(),
+          ingredients: val('ingredients') || '',
+          instructions: val('instructions') || '',
+          notes: val('notes') || '',
+          photos: state.formPhotos.map(p=>({id:p.id, thumb:p.thumb})),
+        };
+        if(isEdit){
+          const idx = state.recipes.findIndex(x=>x.id===id);
+          state.recipes[idx] = recipe;
+        } else {
+          state.recipes.push(recipe);
+        }
+        await saveRecipes();
+        for(const pid of Object.keys(state.formNewFullData)){
+          await setFullPhoto(id, pid, state.formNewFullData[pid]);
+        }
+        for(const pid of state.formDeletedPhotoIds){
+          await deleteFullPhoto(id, pid);
+        }
+        state.formPhotos = []; state.formNewFullData = {}; state.formDeletedPhotoIds = []; state.editing = null;
+        state.activeId = id;
+        state.view = 'detail';
+        state._activePhotoIdx = 0;
+        showToast(isEdit ? 'Zapisano zmiany.' : 'Dodano przepis.');
+        render();
+      }catch(err){
+        showToast('Coś poszło nie tak przy zapisie: ' + (err && err.message ? err.message : 'nieznany błąd'));
+      }
+    });
+  }
+}
+
+async function openLightbox(recipeId, startIdx){
+  const r = state.recipes.find(x=>x.id===recipeId);
+  if(!r) return;
+  const photos = photosOf(r);
+  if(!photos.length) return;
+  let idx = startIdx || 0;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  document.body.appendChild(overlay);
+
+  async function renderLightbox(){
+    overlay.innerHTML = `
+      <button class="lightbox-close" id="lb-close" aria-label="Zamknij">×</button>
+      ${photos.length>1 ? `<button class="lightbox-nav lightbox-prev" id="lb-prev" aria-label="Poprzednie">‹</button>` : ''}
+      <img class="lightbox-img" id="lb-img" src="${photos[idx].thumb}" alt="">
+      ${photos.length>1 ? `<button class="lightbox-nav lightbox-next" id="lb-next" aria-label="Następne">›</button>` : ''}
+    `;
+    overlay.querySelector('#lb-close').addEventListener('click', ()=> overlay.remove());
+    const prev = overlay.querySelector('#lb-prev');
+    const next = overlay.querySelector('#lb-next');
+    if(prev) prev.addEventListener('click', ()=>{ idx = (idx-1+photos.length)%photos.length; renderLightbox(); });
+    if(next) next.addEventListener('click', ()=>{ idx = (idx+1)%photos.length; renderLightbox(); });
+    const full = await getFullPhoto(recipeId, photos[idx].id);
+    const img = overlay.querySelector('#lb-img');
+    if(full && img) img.src = full;
+  }
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  renderLightbox();
+}
+
+function openDetail(id){ state.activeId = id; state._activePhotoIdx = 0; state.view = 'detail'; render(); }
+function openForm(id){
+  state.editing = id ? Object.assign({}, state.recipes.find(x=>x.id===id)) : null;
+  state.photoFullPending = null; state._pendingThumb = null;
+  state.view = 'form'; render();
+}
+function openDeleteConfirm(id){
+  const r = state.recipes.find(x=>x.id===id);
+  if(!r) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(46,42,34,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:var(--card);border-radius:14px;padding:24px;max-width:360px;width:100%;">
+      <h3 style="font-size:18px;margin-bottom:10px;">Usunąć przepis?</h3>
+      <p style="font-size:14.5px;color:var(--ink-soft);margin-bottom:18px;">„${escapeHtml(r.name)}” zostanie usunięty bezpowrotnie.</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" id="confirm-cancel">Anuluj</button>
+        <button class="btn btn-danger" id="confirm-delete" style="background:var(--danger);color:#fff;border:none;">Usuń</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  overlay.querySelector('#confirm-cancel').addEventListener('click', ()=> overlay.remove());
+  overlay.querySelector('#confirm-delete').addEventListener('click', async ()=>{
+    state.recipes = state.recipes.filter(x=>x.id!==id);
+    delete state.checks[id];
+    await saveRecipes(); await saveChecks(); await deleteAllPhotosForRecipe(r);
+    state.view = 'grid'; state.activeId = null;
+    overlay.remove();
+    showToast('Przepis usunięty.');
+    render();
+  });
+}
+
+(async function init(){
+  document.getElementById('app').innerHTML = '<div class="empty"><p>Wczytywanie…</p></div>';
+  await loadAll();
+  render();
+})();
+</script>
+</body>
+</html>
