@@ -175,7 +175,31 @@
 <div class="app" id="app"></div>
 <div class="toast" id="toast"></div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth, signInAnonymously, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyApzXwbIyn4ScfLhnd2QHmSpkjzE0fTEdU",
+  authDomain: "yumm-a96d1.firebaseapp.com",
+  projectId: "yumm-a96d1",
+  storageBucket: "yumm-a96d1.firebasestorage.app",
+  messagingSenderId: "542174916144",
+  appId: "1:542174916144:web:92720b691529e2b16307f5"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+const storage = getStorage(fbApp);
+
 const CATEGORIES = [
   {id:'przekaski', label:'Przekąski / małe dania'},
   {id:'glowne', label:'Dania główne'},
@@ -192,7 +216,9 @@ let state = {
   view: 'grid',      // grid | detail | form
   activeId: null,
   editing: null,     // recipe object being edited (or null = new)
-  photoFullPending: null, // full-res dataURL captured during form editing, saved on submit
+  formId: null,
+  formPhotos: [],
+  formDeletedPaths: [],
 };
 
 function uid(){ return 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -205,53 +231,72 @@ function showToast(msg){
   showToast._t = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 
-async function loadAll(){
-  try{
-    const r = await window.storage.get('recipes', false);
-    state.recipes = r ? JSON.parse(r.value) : [];
-  }catch(e){ state.recipes = []; }
-  try{
-    const c = await window.storage.get('ingredient-checks', false);
-    state.checks = c ? JSON.parse(c.value) : {};
-  }catch(e){ state.checks = {}; }
+function subscribeRecipes(){
+  onSnapshot(collection(db, 'recipes'), snap=>{
+    state.recipes = snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
+    if(state.view !== 'form') render();
+  }, ()=>{ showToast('Błąd synchronizacji przepisów.'); });
 }
 
-async function saveRecipes(){
-  try{
-    const res = await window.storage.set('recipes', JSON.stringify(state.recipes), false);
-    if(!res) showToast('Nie udało się zapisać zmian.');
-  }catch(e){ showToast('Nie udało się zapisać zmian.'); }
+function subscribeChecks(){
+  onSnapshot(collection(db, 'checks'), snap=>{
+    const checks = {};
+    snap.docs.forEach(d=>{ checks[d.id] = d.data(); });
+    state.checks = checks;
+    if(state.view !== 'form') render();
+  }, ()=>{ showToast('Błąd synchronizacji listy składników.'); });
 }
 
-async function saveChecks(){
+async function saveRecipeDoc(recipe){
+  const {id, ...data} = recipe;
   try{
-    await window.storage.set('ingredient-checks', JSON.stringify(state.checks), false);
+    await setDoc(doc(db, 'recipes', id), data);
+    return true;
+  }catch(e){ showToast('Nie udało się zapisać zmian.'); return false; }
+}
+
+async function deleteRecipeDoc(id){
+  try{ await deleteDoc(doc(db, 'recipes', id)); }catch(e){ showToast('Nie udało się usunąć przepisu.'); }
+}
+
+async function setCheck(recipeId, idx, val){
+  state.checks[recipeId] = state.checks[recipeId] || {};
+  state.checks[recipeId][idx] = val;
+  try{
+    await setDoc(doc(db, 'checks', recipeId), state.checks[recipeId]);
   }catch(e){ showToast('Nie udało się zapisać listy.'); }
 }
 
-function photoKey(recipeId, photoId){
-  return (photoId && photoId !== 'legacy') ? ('photo:'+recipeId+':'+photoId) : ('photo:'+recipeId);
-}
-async function getFullPhoto(recipeId, photoId){
-  try{
-    const res = await window.storage.get(photoKey(recipeId, photoId), false);
-    return res ? res.value : null;
-  }catch(e){ return null; }
+async function deleteChecksDoc(id){
+  try{ await deleteDoc(doc(db, 'checks', id)); }catch(e){}
 }
 
-async function setFullPhoto(recipeId, photoId, dataUrl){
-  try{
-    if(dataUrl){ await window.storage.set(photoKey(recipeId, photoId), dataUrl, false); }
-  }catch(e){ showToast('Zdjęcie w pełnej rozdzielczości nie zostało zapisane.'); }
+function dataUrlToBlob(dataUrl){
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const bin = atob(base64);
+  const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type: mime});
 }
 
-async function deleteFullPhoto(recipeId, photoId){
-  try{ await window.storage.delete(photoKey(recipeId, photoId), false); }catch(e){}
+async function uploadRecipePhoto(recipeId, photoId, blob){
+  const path = 'photos/'+recipeId+'/'+photoId+'.jpg';
+  const sref = ref(storage, path);
+  await uploadBytes(sref, blob);
+  const url = await getDownloadURL(sref);
+  return {path, url};
+}
+
+async function deleteStoragePath(path){
+  try{ await deleteObject(ref(storage, path)); }catch(e){}
 }
 
 async function deleteAllPhotosForRecipe(recipe){
   const photos = photosOf(recipe);
-  for(const p of photos){ await deleteFullPhoto(recipe.id, p.id); }
+  for(const p of photos){
+    if(p.path) await deleteStoragePath(p.path);
+  }
 }
 
 function resizeImage(file, maxWidth, quality){
@@ -545,9 +590,7 @@ function attachHandlers(){
     cb.addEventListener('change', async ()=>{
       const idx = cb.dataset.checkIdx;
       const rid = state.activeId;
-      state.checks[rid] = state.checks[rid] || {};
-      state.checks[rid][idx] = cb.checked;
-      await saveChecks();
+      await setCheck(rid, idx, cb.checked);
       render();
     });
   });
@@ -555,9 +598,12 @@ function attachHandlers(){
   // form view
   const cancelBtn = document.getElementById('btn-cancel');
   const cancelBtn2 = document.getElementById('btn-cancel-2');
-  const cancelAction = ()=>{ 
-    state.editing = null; state.formPhotos = []; state.formNewFullData = {}; state.formDeletedPhotoIds = [];
-    state.view = state.activeId ? 'detail' : 'grid'; render(); 
+  const cancelAction = async ()=>{
+    for(const p of state.formPhotos){
+      if(p.isNew && p.path){ await deleteStoragePath(p.path); }
+    }
+    state.editing = null; state.formPhotos = []; state.formDeletedPaths = []; state.formId = null;
+    state.view = state.activeId ? 'detail' : 'grid'; render();
   };
   if(cancelBtn) cancelBtn.addEventListener('click', cancelAction);
   if(cancelBtn2) cancelBtn2.addEventListener('click', cancelAction);
@@ -571,8 +617,8 @@ function attachHandlers(){
           const thumb = await resizeImage(file, 320, 0.6);
           const full = await resizeImage(file, 1100, 0.78);
           const pid = uid();
-          state.formPhotos.push({id: pid, thumb, isNew:true});
-          state.formNewFullData[pid] = full;
+          const uploaded = await uploadRecipePhoto(state.formId, pid, dataUrlToBlob(full));
+          state.formPhotos.push({id: pid, thumb, url: uploaded.url, path: uploaded.path, isNew:true});
           if(photoList){
             photoList.insertAdjacentHTML('beforeend', `
               <div class="photo-upload-item" data-photo-id="${pid}">
@@ -591,9 +637,12 @@ function attachHandlers(){
       const btn = e.target.closest('[data-remove-photo]');
       if(!btn) return;
       const pid = btn.dataset.removePhoto;
+      const photo = state.formPhotos.find(p=>p.id===pid);
       state.formPhotos = state.formPhotos.filter(p=>p.id!==pid);
-      delete state.formNewFullData[pid];
-      if(!state.formDeletedPhotoIds.includes(pid)) state.formDeletedPhotoIds.push(pid);
+      if(photo && photo.path){
+        if(photo.isNew) deleteStoragePath(photo.path);
+        else state.formDeletedPaths.push(photo.path);
+      }
       const node = photoList.querySelector(`[data-photo-id="${pid}"]`);
       if(node) node.remove();
     });
@@ -612,7 +661,7 @@ function attachHandlers(){
           return;
         }
         const isEdit = !!(state.editing && state.editing.id);
-        const id = isEdit ? state.editing.id : uid();
+        const id = state.formId;
         const recipe = {
           id,
           name,
@@ -624,22 +673,14 @@ function attachHandlers(){
           ingredients: val('ingredients') || '',
           instructions: val('instructions') || '',
           notes: val('notes') || '',
-          photos: state.formPhotos.map(p=>({id:p.id, thumb:p.thumb})),
+          photos: state.formPhotos.map(p=>({id:p.id, thumb:p.thumb, url:p.url, path:p.path})),
         };
-        if(isEdit){
-          const idx = state.recipes.findIndex(x=>x.id===id);
-          state.recipes[idx] = recipe;
-        } else {
-          state.recipes.push(recipe);
+        const ok = await saveRecipeDoc(recipe);
+        if(!ok) return;
+        for(const path of state.formDeletedPaths){
+          await deleteStoragePath(path);
         }
-        await saveRecipes();
-        for(const pid of Object.keys(state.formNewFullData)){
-          await setFullPhoto(id, pid, state.formNewFullData[pid]);
-        }
-        for(const pid of state.formDeletedPhotoIds){
-          await deleteFullPhoto(id, pid);
-        }
-        state.formPhotos = []; state.formNewFullData = {}; state.formDeletedPhotoIds = []; state.editing = null;
+        state.formPhotos = []; state.formDeletedPaths = []; state.editing = null; state.formId = null;
         state.activeId = id;
         state.view = 'detail';
         state._activePhotoIdx = 0;
@@ -652,7 +693,7 @@ function attachHandlers(){
   }
 }
 
-async function openLightbox(recipeId, startIdx){
+function openLightbox(recipeId, startIdx){
   const r = state.recipes.find(x=>x.id===recipeId);
   if(!r) return;
   const photos = photosOf(r);
@@ -663,11 +704,11 @@ async function openLightbox(recipeId, startIdx){
   overlay.className = 'lightbox-overlay';
   document.body.appendChild(overlay);
 
-  async function renderLightbox(){
+  function renderLightbox(){
     overlay.innerHTML = `
       <button class="lightbox-close" id="lb-close" aria-label="Zamknij">×</button>
       ${photos.length>1 ? `<button class="lightbox-nav lightbox-prev" id="lb-prev" aria-label="Poprzednie">‹</button>` : ''}
-      <img class="lightbox-img" id="lb-img" src="${photos[idx].thumb}" alt="">
+      <img class="lightbox-img" id="lb-img" src="${photos[idx].url || photos[idx].thumb}" alt="">
       ${photos.length>1 ? `<button class="lightbox-nav lightbox-next" id="lb-next" aria-label="Następne">›</button>` : ''}
     `;
     overlay.querySelector('#lb-close').addEventListener('click', ()=> overlay.remove());
@@ -675,9 +716,6 @@ async function openLightbox(recipeId, startIdx){
     const next = overlay.querySelector('#lb-next');
     if(prev) prev.addEventListener('click', ()=>{ idx = (idx-1+photos.length)%photos.length; renderLightbox(); });
     if(next) next.addEventListener('click', ()=>{ idx = (idx+1)%photos.length; renderLightbox(); });
-    const full = await getFullPhoto(recipeId, photos[idx].id);
-    const img = overlay.querySelector('#lb-img');
-    if(full && img) img.src = full;
   }
   overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
   renderLightbox();
@@ -685,8 +723,11 @@ async function openLightbox(recipeId, startIdx){
 
 function openDetail(id){ state.activeId = id; state._activePhotoIdx = 0; state.view = 'detail'; render(); }
 function openForm(id){
-  state.editing = id ? Object.assign({}, state.recipes.find(x=>x.id===id)) : null;
-  state.photoFullPending = null; state._pendingThumb = null;
+  const rec = id ? state.recipes.find(x=>x.id===id) : null;
+  state.editing = rec ? Object.assign({}, rec) : null;
+  state.formId = id || uid();
+  state.formPhotos = rec ? (rec.photos||[]).map(p=>Object.assign({}, p)) : [];
+  state.formDeletedPaths = [];
   state.view = 'form'; render();
 }
 function openDeleteConfirm(id){
@@ -708,9 +749,10 @@ function openDeleteConfirm(id){
   overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
   overlay.querySelector('#confirm-cancel').addEventListener('click', ()=> overlay.remove());
   overlay.querySelector('#confirm-delete').addEventListener('click', async ()=>{
-    state.recipes = state.recipes.filter(x=>x.id!==id);
+    await deleteAllPhotosForRecipe(r);
+    await deleteRecipeDoc(id);
+    await deleteChecksDoc(id);
     delete state.checks[id];
-    await saveRecipes(); await saveChecks(); await deleteAllPhotosForRecipe(r);
     state.view = 'grid'; state.activeId = null;
     overlay.remove();
     showToast('Przepis usunięty.');
@@ -718,11 +760,16 @@ function openDeleteConfirm(id){
   });
 }
 
-(async function init(){
-  document.getElementById('app').innerHTML = '<div class="empty"><p>Wczytywanie…</p></div>';
-  await loadAll();
-  render();
-})();
+document.getElementById('app').innerHTML = '<div class="empty"><p>Wczytywanie…</p></div>';
+onAuthStateChanged(auth, user=>{
+  if(user){
+    subscribeRecipes();
+    subscribeChecks();
+  }
+});
+signInAnonymously(auth).catch(()=>{
+  document.getElementById('app').innerHTML = '<div class="empty"><h2>Nie udało się połączyć z bazą</h2><p>Sprawdź połączenie z internetem i odśwież stronę.</p></div>';
+});
 </script>
 </body>
 </html>
